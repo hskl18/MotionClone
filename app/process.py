@@ -37,6 +37,12 @@ def own_process_tree(proc):
     return lambda:kernel.CloseHandle(job)
 
 
+def log_tail(reader, size=32768):
+    # End of a growing render log; whole-file reads every poll cost more the longer a render runs.
+    reader.seek(max(0,reader.seek(0,2)-size))
+    return reader.read().decode('utf-8',errors='replace')
+
+
 def popen(args, **kwargs):
     # Only launches owned child processes; never touches Warp or other windows.
     return subprocess.Popen(args, creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0, **kwargs)

@@ -14,7 +14,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from .media import probe
-from .process import Cancelled, popen, run, own_process_tree
+from .process import Cancelled, log_tail, popen, run, own_process_tree
 
 RUNTIME = Path(__file__).resolve().parents[1] / 'hyperframes'
 CLI = RUNTIME / 'node_modules/hyperframes/bin/hyperframes.mjs'
@@ -77,7 +77,7 @@ def run_cli(args, folder, cancel, progress=None):
     log = folder / ('hyperframes-render.log' if args[0]=='render' else 'hyperframes-check.log')
     env = os.environ.copy()
     env.update(NO_COLOR='1', CI='1', DO_NOT_TRACK='1', PRODUCER_ENABLE_BROWSER_POOL='false')
-    with log.open('w',encoding='utf-8') as stream:
+    with log.open('w',encoding='utf-8') as stream, log.open('rb') as reader:
         proc = popen(['node',str(CLI),*args],cwd=folder,stdin=subprocess.DEVNULL,stdout=stream,stderr=subprocess.STDOUT,env=env)
         close_tree = own_process_tree(proc)
         start = time.monotonic()
@@ -86,7 +86,7 @@ def run_cli(args, folder, cancel, progress=None):
             while proc.poll() is None:
                 if cancel.is_set():raise Cancelled()
                 if time.monotonic()-start>900:raise TimeoutError('HyperFrames took too long. The project is saved; try a shorter clip.')
-                tail = log.read_text(encoding='utf-8',errors='replace')[-6000:]
+                tail = log_tail(reader)[-6000:]
                 # The CLI can retain idle Node handles on Windows after its final
                 # validated-artifact summary. Close our job then; the independent
                 # frame count, visual and audio gates below still decide acceptance.

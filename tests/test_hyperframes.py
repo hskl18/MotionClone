@@ -92,8 +92,10 @@ def test_wrong_frame_count_is_rejected(tmp_path):
 
 def test_finished_cli_cannot_stall_on_idle_node_handles(tmp_path,monkeypatch):
     stub=tmp_path/'finished.mjs'
-    stub.write_text("console.log('Render complete'); console.log('12 frames · rendered in 1s'); setInterval(()=>{},1000);",encoding='utf-8')
+    stub.write_text("console.log('x'.repeat(100000)); console.log('Render complete'); console.log('12 frames · rendered in 1s'); setInterval(()=>{},1000);",encoding='utf-8')
     monkeypatch.setattr(hf,'CLI',stub)
+    read_text=Path.read_text  # polls read only the end of the log, never the whole file
+    monkeypatch.setattr(Path,'read_text',lambda self,*a,**k:pytest.fail('read the whole log') if self.suffix=='.log' else read_text(self,*a,**k))
     started=time.monotonic()
     hf.run_cli(['render'],tmp_path,threading.Event())
     assert time.monotonic()-started<5

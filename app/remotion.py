@@ -8,7 +8,7 @@ import zipfile
 import os
 from pathlib import Path
 from .media import probe
-from .process import Cancelled, popen, run
+from .process import Cancelled, log_tail, popen, run
 
 RUNTIME = Path(__file__).resolve().parents[1] / 'remotion'
 
@@ -54,7 +54,7 @@ def render(folder, plan, brief, cancel, progress, *, preview=False):
     if preview:args.append('--preview')
     progress('Rendering Remotion preview' if preview else 'Rendering Remotion video',48 if preview else 78)
     log=folder/'remotion-render.log'
-    with log.open('w',encoding='utf-8') as stream:
+    with log.open('w',encoding='utf-8') as stream, log.open('rb') as reader:
         proc=popen(args,cwd=RUNTIME,stdout=stream,stderr=subprocess.STDOUT,env=env)
         started=time.monotonic();stopping=None;timed_out=False
         try:
@@ -64,7 +64,7 @@ def render(folder, plan, brief, cancel, progress, *, preview=False):
                         timed_out=not cancel.is_set();signal.touch();stopping=time.monotonic()
                     if time.monotonic()-stopping>20:
                         proc.terminate();proc.wait(timeout=10);break
-                lines=log.read_text(encoding='utf-8',errors='replace').splitlines()
+                lines=log_tail(reader).splitlines()
                 for line in reversed(lines[-10:]):
                     try:
                         value=json.loads(line)['progress']
