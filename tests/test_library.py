@@ -100,3 +100,17 @@ def test_library_listing_omits_heavy_plans(library):
     job=response.json()[0]
     assert job['id']==ident and 'plan' not in job
     assert client.get(f'/api/jobs/{ident}').json()['plan']['title']=='Orbit'
+
+
+def test_unreadable_saved_projects_are_skipped_with_a_warning(library, caplog):
+    client, ident, folder = library
+    for name, text in [('truncated', '{"id":'), ('notobject', '[]')]:
+        (server.DATA / name).mkdir()
+        (server.DATA / name / 'job.json').write_text(text, encoding='utf-8')
+    server.JOBS.clear()
+    with caplog.at_level('WARNING'):
+        server.load_jobs()
+    assert list(server.JOBS) == [ident]
+    assert [job['id'] for job in client.get('/api/library').json()] == [ident]
+    for name in ('truncated', 'notobject'):
+        assert any(str(server.DATA / name / 'job.json') in record.getMessage() for record in caplog.records)

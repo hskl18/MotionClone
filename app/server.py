@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import re
 import secrets
@@ -33,6 +34,7 @@ LOCK=threading.RLock()
 JOBS={}
 ACTIVE={'id':None}
 AUTH={'ok':False,'checked':0.0}
+LOG=logging.getLogger(__name__)
 app=FastAPI(title='MotionClone Local',docs_url=None,redoc_url=None)
 CONNECTION=Connection()
 if HOSTED:
@@ -47,12 +49,17 @@ def persist(job):
         tmp=folder/'job.tmp';tmp.write_text(json.dumps(value,indent=2),encoding='utf-8');tmp.replace(folder/'job.json')
 
 
-for path in DATA.glob('*/job.json'):
-    try:
-        job=json.loads(path.read_text(encoding='utf-8'));job['cancel']=threading.Event()
-        if job['status'] in ('running','queued'):job.update(status='interrupted',stage='App restarted. Retry to continue.')
-        JOBS[job['id']]=job
-    except (ValueError,KeyError):pass
+def load_jobs():
+    """Refill the library from saved projects; an unreadable job.json is skipped with a warning, not fatal."""
+    for path in DATA.glob('*/job.json'):
+        try:
+            job=json.loads(path.read_text(encoding='utf-8'));job['cancel']=threading.Event()
+            if job['status'] in ('running','queued'):job.update(status='interrupted',stage='App restarted. Retry to continue.')
+            JOBS[job['id']]=job
+        except (OSError,ValueError,KeyError,TypeError) as exc:LOG.warning('Skipped unreadable saved project %s: %s',path,exc)
+
+
+load_jobs()
 
 
 def public(job, detailed=True):
