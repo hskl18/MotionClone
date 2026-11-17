@@ -109,10 +109,21 @@ with sync_playwright() as p:
     expect(page.locator('#hyperframes-export')).to_have_attribute('href',f"/api/jobs/{active['id']}/hyperframes")
     expect(page.locator('#remotion-export')).to_be_hidden()
     expect(page.locator('#edit-panel')).to_be_hidden()
+    for name in ['result','source','compare']:
+        controls = page.locator(f'#{name}-tab').get_attribute('aria-controls')
+        assert controls and page.locator(f'#{controls}').get_attribute('role') == 'tabpanel', f'#{name}-tab controls no tabpanel'
+    panel = page.locator('[role=tabpanel]')
+    expect(panel).to_have_attribute('aria-labelledby','result-tab')
     page.locator('#result-tab').focus()
     page.keyboard.press('End')
     expect(page.locator('#compare-tab')).to_be_focused()
     expect(page.locator('#compare-tab')).to_have_attribute('aria-selected','true')
+    expect(panel).to_have_attribute('aria-labelledby','compare-tab')
+    page.keyboard.press('ArrowLeft')
+    expect(panel).to_have_attribute('aria-labelledby','source-tab')
+    page.keyboard.press('Home')
+    expect(panel).to_have_attribute('aria-labelledby','result-tab')
+    page.keyboard.press('End')
     expect(page.locator('#source-video')).to_be_visible()
     expect(page.locator('#result-video')).to_be_visible()
     for width in [320,768,1024,1440]:
