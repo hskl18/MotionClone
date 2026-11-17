@@ -163,7 +163,15 @@ def test_similarity_detects_wrong_colors_with_equal_brightness():
     assert scenes.similarity(red,green)<.5, 'A different palette must not pass visual correction as a match.'
 
 
-def test_preview_checks_detected_flash_between_regular_samples(tmp_path):
+@pytest.fixture
+def chrome():
+    from playwright.sync_api import Error,sync_playwright
+    with sync_playwright() as pw:
+        try:pw.chromium.launch(channel='chrome').close()
+        except Error:pytest.skip('Google Chrome required')
+
+
+def test_preview_checks_detected_flash_between_regular_samples(tmp_path,chrome):
     source=tmp_path/'source.mp4';writer=cv2.VideoWriter(str(source),cv2.VideoWriter_fourcc(*'mp4v'),10,(160,90))
     assert writer.isOpened()
     for n in range(20):writer.write(np.full((90,160,3),255 if n==3 else 0,dtype=np.uint8))
